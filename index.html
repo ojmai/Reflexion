@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reflexion</title>
+<script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0a0a0a;
+  color: #e4e4e7;
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+nav {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 32px;
+  background: rgba(10,10,10,0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.nav-title { font-size: 20px; font-weight: 700; cursor: pointer; letter-spacing: -0.5px; }
+.nav-actions { display: flex; gap: 8px; align-items: center; }
+
+.card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px; padding: 24px;
+}
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 20px; border-radius: 12px;
+  font-weight: 600; font-size: 14px; cursor: pointer; border: none;
+  transition: all 0.15s ease; white-space: nowrap; font-family: inherit;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+}
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(59,130,246,0.35);
+}
+.btn-primary:active:not(:disabled) { transform: translateY(0); }
+.btn-secondary { background: #27272a; color: #e4e4e7; border: 1px solid #3f3f46; }
+.btn-secondary:hover:not(:disabled) { background: #3f3f46; transform: translateY(-1px); }
+.btn-ghost { background: transparent; color: #a1a1aa; border: 1px solid transparent; padding: 8px 12px; }
+.btn-ghost:hover { background: rgba(255,255,255,0.06); color: #e4e4e7; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-lg { padding: 14px 28px; font-size: 16px; border-radius: 14px; }
+.btn-full { width: 100%; }
+.btn-danger { background: #7f1d1d; color: #fca5a5; border: 1px solid #991b1b; }
+.btn-danger:hover:not(:disabled) { background: #991b1b; }
+
+.container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+.container-sm { max-width: 720px; margin: 0 auto; padding: 40px 24px; }
+
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.grid-top { display: grid; grid-template-columns: 1fr 2fr; gap: 24px; }
+@media (max-width: 900px) { .grid-3 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 660px) {
+  .grid-3, .grid-top { grid-template-columns: 1fr; }
+  nav { padding: 12px 16px; }
+  .container, .container-sm { padding: 24px 16px; }
+}
+
+input, textarea, select {
+  width: 100%; background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px; color: #e4e4e7;
+  font-size: 15px; font-family: inherit;
+  padding: 12px 16px; outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input:focus, textarea:focus, select:focus {
+  border-color: rgba(59,130,246,0.5);
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+}
+textarea { resize: vertical; min-height: 200px; line-height: 1.6; }
+select option { background: #1a1a1a; }
+
+.badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+.badge-green { background: rgba(74,222,128,0.15); color: #4ade80; }
+.badge-orange { background: rgba(251,146,60,0.15); color: #fb923c; }
+
+.alert { padding: 14px 18px; border-radius: 12px; font-size: 14px; line-height: 1.5; }
+.alert-warning { background: rgba(251,146,60,0.1); border: 1px solid rgba(251,146,60,0.25); color: #fdba74; }
+.alert-info { background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.2); color: #93c5fd; }
+
+.center-layout {
+  min-height: calc(100vh - 57px);
+  display: flex; align-items: center; justify-content: center; padding: 40px 24px;
+}
+.center-content { width: 100%; max-width: 640px; }
+
+kbd { display: inline-block; padding: 2px 8px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-size: 12px; font-family: monospace; }
+
+.prose h1 { font-size: 26px; font-weight: 700; margin: 28px 0 14px; }
+.prose h2 { font-size: 20px; font-weight: 700; margin: 24px 0 12px; }
+.prose h3 { font-size: 17px; font-weight: 600; margin: 20px 0 10px; }
+.prose h1:first-child, .prose h2:first-child, .prose h3:first-child { margin-top: 0; }
+.prose p { color: #a1a1aa; margin-bottom: 14px; line-height: 1.7; }
+.prose ul, .prose ol { color: #a1a1aa; margin-bottom: 14px; padding-left: 22px; }
+.prose li { margin-bottom: 5px; line-height: 1.6; }
+.prose strong { color: #e4e4e7; font-weight: 600; }
+.prose code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+.prose hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 20px 0; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeIn 0.2s ease; }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-title" onclick="navigate('dashboard')">Reflexion</span>
+  <div class="nav-actions">
+    <button class="btn btn-secondary" onclick="navigate('report')">Jahresbericht</button>
+    <button class="btn btn-ghost" onclick="navigate('settings')" title="Einstellungen">⚙️</button>
+  </div>
+</nav>
+
+<div id="app"></div>
+
+<script>
+// ================================================================
+// STORAGE
+// ================================================================
+
+function getEntries() {
+  return JSON.parse(localStorage.getItem('reflexion_entries') || '[]');
+}
+function saveEntries(e) { localStorage.setItem('reflexion_entries', JSON.stringify(e)); }
+function getStreak() {
+  return JSON.parse(localStorage.getItem('reflexion_streak') ||
+    '{"current_streak":0,"longest_streak":0,"last_entry_date":null}');
+}
+function saveStreak(s) { localStorage.setItem('reflexion_streak', JSON.stringify(s)); }
+function getApiKey() { return localStorage.getItem('reflexion_api_key') || ''; }
+function saveApiKey(k) { localStorage.setItem('reflexion_api_key', k); }
+
+// ================================================================
+// HELPERS
+// ================================================================
+
+function getISOWeekYear(date) {
+  date = date || new Date();
+  var d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  var day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  var week = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  return { week: week, year: d.getUTCFullYear() };
+}
+
+function formatDate(iso) {
+  return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function nextId(arr) {
+  if (arr.length === 0) return 1;
+  return Math.max.apply(null, arr.map(function(e) { return e.id; })) + 1;
+}
+
+function esc(str) {
+  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function getLastEntry() {
+  var entries = getEntries();
+  if (entries.length === 0) return null;
+  return entries.slice().sort(function(a, b) {
+    return new Date(b.created_at) - new Date(a.created_at);
+  })[0];
+}
+
+function getEntriesForYear(year) {
+  return getEntries().filter(function(e) { return e.year === year; });
+}
+
+function getRecurringNegativeThemes() {
+  var entries = getEntries()
+    .slice().sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); })
+    .slice(0, 4);
+  if (entries.length < 2) return [];
+  var categorySets = entries.map(function(e) {
+    var set = {};
+    (e.categories || []).filter(function(c) { return c.sentiment === 'negative'; })
+      .forEach(function(c) { set[c.name] = true; });
+    return set;
+  });
+  var themes = [];
+  Object.keys(categorySets[0]).forEach(function(cat) {
+    var count = 1;
+    for (var i = 1; i < categorySets.length; i++) {
+      if (categorySets[i][cat]) count++;
+      else break;
+    }
+    if (count >= 2) themes.push({ name: cat, count: count });
+  });
+  return themes;
+}
+
+function updateStreak() {
+  var streak = getStreak();
+  if (!streak.last_entry_date) {
+    streak.current_streak = 1;
+    streak.longest_streak = 1;
+  } else {
+    var daysDiff = Math.floor((new Date() - new Date(streak.last_entry_date)) / 86400000);
+    if (daysDiff < 7) {
+      // same week — no change
+    } else if (daysDiff <= 14) {
+      streak.current_streak += 1;
+      if (streak.current_streak > streak.longest_streak) streak.longest_streak = streak.current_streak;
+    } else {
+      streak.current_streak = 1;
+    }
+  }
+  streak.last_entry_date = new Date().toISOString();
+  saveStreak(streak);
+}
+
+// ================================================================
+// LLM  (calls Claude API directly from the browser)
+// ================================================================
+
+function callClaude(prompt, maxTokens) {
+  var apiKey = getApiKey();
+  if (!apiKey) return Promise.reject(new Error('Kein API-Schlüssel konfiguriert. Bitte in ⚙️ Einstellungen eintragen.'));
+  return fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-allow-browser': 'true',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: maxTokens || 1024,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  }).then(function(resp) {
+    if (!resp.ok) return resp.text().then(function(t) { throw new Error('API Fehler (' + resp.status + '): ' + t); });
+    return resp.json();
+  }).then(function(data) { return data.content[0].text; });
+}
+
+function extractJson(text) {
+  var t = text.trim();
+  if (t.indexOf('```json') !== -1) t = t.split('```json')[1].split('```')[0].trim();
+  else if (t.indexOf('```') !== -1) t = t.split('```')[1].split('```')[0].trim();
+  return JSON.parse(t);
+}
+
+function analyzeEntry(goodText, badText) {
+  var prompt = 'Analysiere diese wöchentliche Reflexion.\n\nGut gelaufen:\n' + goodText +
+    '\n\nSchlecht gelaufen:\n' + badText +
+    '\n\nAufgaben:\n1. Erstelle eine kurze Zusammenfassung (2-3 Sätze)\n' +
+    '2. Extrahiere Kategorien mit Sentiment (positive/negative)\n\n' +
+    'Antworte im JSON-Format:\n{"summary": "...", "categories": [{"name": "Schlaf", "sentiment": "negative"}, {"name": "Sport", "sentiment": "positive"}]}';
+  return callClaude(prompt, 1024).then(extractJson);
+}
+
+function generateFollowUpQuestions(lastContext, recurringThemes) {
+  var themesText = recurringThemes.length > 0
+    ? recurringThemes.map(function(t) { return t.name; }).join(', ')
+    : 'Keine';
+  var prompt = 'Basierend auf der letzten Reflexion und wiederkehrenden Themen, erstelle 2-3 gezielte Follow-up-Fragen auf Deutsch.\n\n' +
+    'Letzte Reflexion:\n' + lastContext +
+    '\n\nWiederkehrende negative Themen:\n' + themesText +
+    '\n\nAntworte mit einer JSON-Liste:\n["Frage 1", "Frage 2", "Frage 3"]';
+  return callClaude(prompt, 512).then(extractJson);
+}
+
+function generateYearReport(year) {
+  var entries = getEntriesForYear(year);
+  if (entries.length === 0) return Promise.reject(new Error('Keine Einträge für ' + year + ' gefunden.'));
+  var entriesText = entries
+    .slice().sort(function(a, b) { return a.week_number - b.week_number; })
+    .map(function(e) {
+      var cats = (e.categories || []).map(function(c) { return c.name + ' (' + c.sentiment + ')'; }).join(', ');
+      return 'Woche ' + e.week_number + ':\nZusammenfassung: ' + (e.summary || 'Keine') +
+        '\nGut: ' + e.good_text + '\nSchlecht: ' + e.bad_text + '\nKategorien: ' + (cats || 'Keine');
+    }).join('\n\n');
+  var prompt = 'Erstelle einen umfassenden Jahresbericht basierend auf den wöchentlichen Reflexionen.\n\n' +
+    'Reflexionen:\n' + entriesText + '\n\n' +
+    'Der Bericht soll enthalten:\n1. Überblick über das Jahr\n2. Wichtigste Erfolge und Highlights\n' +
+    '3. Hauptherausforderungen und wiederkehrende Themen\n4. Persönliche Entwicklung und Wachstum\n' +
+    '5. Erkenntnisse und Learnings\n6. Ausblick und Empfehlungen\n\n' +
+    'Formatiere den Bericht in Markdown. Schreibe auf Deutsch.';
+  return callClaude(prompt, 4096);
+}
+
+// ================================================================
+// STATE
+// ================================================================
+
+var state = {
+  view: 'dashboard',
+  inputStep: 'greeting',
+  goodText: '', badText: '',
+  lastEntry: null,
+  followUpQuestions: [],
+  recurringThemes: [],
+  weekInfo: null,
+  inputLoadingQuestions: false,
+  reportYear: new Date().getFullYear(),
+  reportContent: '',
+  reportLoading: false,
+};
+
+// ================================================================
+// NAVIGATION
+// ================================================================
+
+function navigate(view) {
+  state.view = view;
+  if (view === 'input') {
+    state.inputStep = 'greeting';
+    state.goodText = ''; state.badText = '';
+    state.followUpQuestions = [];
+    state.recurringThemes = [];
+    state.inputLoadingQuestions = false;
+    state.weekInfo = getISOWeekYear();
+    state.lastEntry = getLastEntry();
+    state.recurringThemes = getRecurringNegativeThemes();
+    render();
+    window.scrollTo(0, 0);
+    // Async: generate follow-up questions
+    var last = state.lastEntry;
+    if (getApiKey() && last) {
+      state.inputLoadingQuestions = true;
+      render();
+      var ctx = last.summary || ('Gut: ' + last.good_text + '\nSchlecht: ' + last.bad_text);
+      generateFollowUpQuestions(ctx, state.recurringThemes)
+        .then(function(qs) { state.followUpQuestions = qs; })
+        .catch(function(e) { console.error('Follow-up failed:', e); })
+        .finally(function() { state.inputLoadingQuestions = false; render(); });
+    }
+    return;
+  }
+  render();
+  window.scrollTo(0, 0);
+}
+
+// ================================================================
+// INPUT SESSION
+// ================================================================
+
+function getInputSteps() {
+  var steps = ['greeting'];
+  if (state.lastEntry) steps.push('review');
+  if (state.followUpQuestions.length > 0 || state.recurringThemes.length > 0) steps.push('followup');
+  steps.push('good', 'bad', 'summary');
+  return steps;
+}
+
+function inputNext() {
+  var steps = getInputSteps();
+  var idx = steps.indexOf(state.inputStep);
+  if (idx < steps.length - 1) { state.inputStep = steps[idx + 1]; render(); }
+}
+
+function inputBack() {
+  var steps = getInputSteps();
+  var idx = steps.indexOf(state.inputStep);
+  if (idx === 0) { navigate('dashboard'); }
+  else { state.inputStep = steps[idx - 1]; render(); }
+}
+
+function saveGoodAndNext() {
+  var el = document.getElementById('goodArea');
+  if (el) state.goodText = el.value;
+  inputNext();
+}
+
+function saveBadAndNext() {
+  var el = document.getElementById('badArea');
+  if (el) state.badText = el.value;
+  inputNext();
+}
+
+function submitEntry() {
+  if (!state.goodText.trim() || !state.badText.trim()) { alert('Bitte fülle beide Felder aus.'); return; }
+  state.inputStep = 'processing';
+  render();
+  var wk = state.weekInfo || getISOWeekYear();
+  var entries = getEntries();
+  var newEntry = {
+    id: nextId(entries),
+    created_at: new Date().toISOString(),
+    week_number: wk.week, year: wk.year,
+    good_text: state.goodText.trim(), bad_text: state.badText.trim(),
+    summary: null, categories: [],
+  };
+  function doSave() {
+    entries.push(newEntry);
+    saveEntries(entries);
+    updateStreak();
+    setTimeout(function() { navigate('dashboard'); }, 700);
+  }
+  if (getApiKey()) {
+    analyzeEntry(newEntry.good_text, newEntry.bad_text)
+      .then(function(a) { newEntry.summary = a.summary; newEntry.categories = a.categories || []; })
+      .catch(function(e) { console.error('Analysis failed:', e); })
+      .finally(doSave);
+  } else {
+    doSave();
+  }
+}
+
+// ================================================================
+// RENDER
+// ================================================================
+
+function render() {
+  var app = document.getElementById('app');
+  if (state.view === 'dashboard') app.innerHTML = renderDashboard();
+  else if (state.view === 'input')    app.innerHTML = renderInput();
+  else if (state.view === 'report')   app.innerHTML = renderReport();
+  else if (state.view === 'settings') app.innerHTML = renderSettings();
+  afterRender();
+}
+
+function afterRender() {
+  var goodArea = document.getElementById('goodArea');
+  if (goodArea) {
+    goodArea.addEventListener('input', function() {
+      state.goodText = this.value;
+      var btn = document.getElementById('goodNext');
+      if (btn) btn.disabled = !this.value.trim();
+    });
+    goodArea.focus();
+    goodArea.setSelectionRange(goodArea.value.length, goodArea.value.length);
+  }
+  var badArea = document.getElementById('badArea');
+  if (badArea) {
+    badArea.addEventListener('input', function() {
+      state.badText = this.value;
+      var btn = document.getElementById('badNext');
+      if (btn) btn.disabled = !this.value.trim();
+    });
+    badArea.focus();
+    badArea.setSelectionRange(badArea.value.length, badArea.value.length);
+  }
+}
+
+// ----------------------------------------------------------------
+// DASHBOARD
+// ----------------------------------------------------------------
+
+function renderDashboard() {
+  var streak = getStreak();
+  var wk = getISOWeekYear();
+  var entries = getEntries()
+    .slice().sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); })
+    .slice(0, 8);
+  var hasKey = !!getApiKey();
+
+  var warning = hasKey ? '' :
+    '<div class="alert alert-warning" style="display:flex;gap:12px;align-items:flex-start;margin-bottom:24px;">' +
+    '<span style="font-size:20px;flex-shrink:0;">⚠️</span><div>' +
+    '<strong>LLM nicht konfiguriert</strong><br>' +
+    '<span>Für automatische Zusammenfassungen bitte <a href="#" onclick="navigate(\'settings\')" style="color:#fb923c;">API-Schlüssel eintragen →</a></span>' +
+    '</div></div>';
+
+  var streakCard = '<div class="card">' +
+    '<p style="color:#a1a1aa;font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:18px;">Deine Serie</p>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">' +
+    '<div><div style="font-size:52px;font-weight:800;color:#4ade80;line-height:1;">' + streak.current_streak + '</div>' +
+    '<div style="color:#a1a1aa;font-size:13px;margin-top:4px;">Aktuelle Serie</div></div>' +
+    '<div><div style="font-size:52px;font-weight:800;color:#60a5fa;line-height:1;">' + streak.longest_streak + '</div>' +
+    '<div style="color:#a1a1aa;font-size:13px;margin-top:4px;">Längste Serie</div></div>' +
+    '</div>' +
+    (streak.last_entry_date ? '<p style="color:#a1a1aa;font-size:13px;margin-top:16px;">Letzter Eintrag: ' + formatDate(streak.last_entry_date) + '</p>' : '') +
+    '</div>';
+
+  var newCard = '<div class="card" style="display:flex;flex-direction:column;justify-content:space-between;min-height:160px;">' +
+    '<div><h3 style="font-size:18px;font-weight:600;margin-bottom:8px;">Neue Reflexion</h3>' +
+    '<p style="color:#a1a1aa;font-size:14px;margin-bottom:20px;">Nimm dir Zeit für deine wöchentliche Selbstreflexion. KW ' + wk.week + ', ' + wk.year + '</p></div>' +
+    '<button class="btn btn-primary btn-lg btn-full" onclick="navigate(\'input\')">Reflexion starten →</button></div>';
+
+  var entriesHtml = entries.length === 0
+    ? '<div class="card" style="text-align:center;padding:48px;">' +
+      '<p style="color:#a1a1aa;font-size:18px;margin-bottom:20px;">Noch keine Einträge vorhanden</p>' +
+      '<button class="btn btn-primary btn-lg" onclick="navigate(\'input\')">Erste Reflexion erstellen</button></div>'
+    : '<div class="grid-3">' + entries.map(renderEntryCard).join('') + '</div>';
+
+  return '<div class="container fade-in">' +
+    '<header style="margin-bottom:32px;">' +
+    '<h1 style="font-size:48px;font-weight:800;letter-spacing:-1px;margin-bottom:6px;">Reflexion</h1>' +
+    '<p style="color:#a1a1aa;font-size:18px;">Deine wöchentliche Selbstreflexion</p></header>' +
+    warning +
+    '<div class="grid-top" style="margin-bottom:32px;">' + streakCard + newCard + '</div>' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
+    '<h2 style="font-size:22px;font-weight:700;">Letzte Einträge</h2>' +
+    '<button class="btn btn-secondary" onclick="navigate(\'report\')">Jahresbericht ' + wk.year + '</button></div>' +
+    entriesHtml + '</div>';
+}
+
+function renderEntryCard(entry) {
+  var cats = entry.categories || [];
+  var pos = cats.filter(function(c) { return c.sentiment === 'positive'; }).length;
+  var neg = cats.filter(function(c) { return c.sentiment === 'negative'; }).length;
+  var preview = entry.summary
+    ? '<p style="font-size:13px;color:#d4d4d8;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + esc(entry.summary) + '</p>'
+    : '<p style="font-size:13px;color:#a1a1aa;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + esc(entry.good_text) + '</p>';
+  return '<div class="card" style="border-left:3px solid #3f3f46;">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">' +
+    '<span style="color:#a1a1aa;font-size:13px;">KW ' + entry.week_number + ', ' + entry.year + '</span>' +
+    '<div style="display:flex;gap:4px;">' +
+    (pos > 0 ? '<span class="badge badge-green">+' + pos + '</span>' : '') +
+    (neg > 0 ? '<span class="badge badge-orange">−' + neg + '</span>' : '') +
+    '</div></div>' + preview +
+    '<div style="color:#71717a;font-size:12px;margin-top:12px;">' + formatDate(entry.created_at) + '</div></div>';
+}
+
+// ----------------------------------------------------------------
+// INPUT SESSION
+// ----------------------------------------------------------------
+
+function renderInput() {
+  if (state.inputStep === 'processing') {
+    return '<div class="center-layout"><div class="center-content" style="text-align:center;">' +
+      '<div style="font-size:64px;margin-bottom:16px;">⏳</div>' +
+      '<h2 style="font-size:28px;font-weight:700;margin-bottom:12px;">Speichere deine Reflexion...</h2>' +
+      (getApiKey() ? '<p style="color:#a1a1aa;">Wird mit KI analysiert und kategorisiert</p>' : '') +
+      '</div></div>';
+  }
+
+  var wk = state.weekInfo || getISOWeekYear();
+  var streak = getStreak();
+  var content = '';
+
+  if (state.inputStep === 'greeting') {
+    content = '<div style="text-align:center;">' +
+      '<div style="font-size:64px;margin-bottom:16px;">👋</div>' +
+      '<h2 style="font-size:36px;font-weight:800;margin-bottom:8px;">Willkommen zurück!</h2>' +
+      '<p style="color:#a1a1aa;font-size:18px;margin-bottom:20px;">KW ' + wk.week + ', ' + wk.year + '</p>' +
+      (streak.current_streak > 0
+        ? '<div class="card" style="display:inline-block;padding:14px 28px;margin-bottom:28px;">' +
+          '<span style="color:#a1a1aa;">Aktuelle Serie: </span>' +
+          '<span style="color:#4ade80;font-weight:700;">' + streak.current_streak + '</span>' +
+          '<span style="color:#a1a1aa;"> ' + (streak.current_streak === 1 ? 'Woche' : 'Wochen') + '</span></div>'
+        : '') +
+      (state.inputLoadingQuestions ? '<p style="color:#a1a1aa;font-size:14px;margin-bottom:20px;">Follow-up Fragen werden vorbereitet...</p>' : '') +
+      '<div><button class="btn btn-primary btn-lg" onclick="inputNext()">Los geht\'s →</button></div></div>';
+  }
+
+  else if (state.inputStep === 'review' && state.lastEntry) {
+    var last = state.lastEntry;
+    var body = last.summary
+      ? '<p style="line-height:1.7;">' + esc(last.summary) + '</p>'
+      : '<div>' +
+        '<p style="color:#4ade80;font-size:12px;font-weight:600;letter-spacing:0.05em;margin-bottom:6px;">GUT GELAUFEN</p>' +
+        '<p style="color:#a1a1aa;font-size:14px;white-space:pre-wrap;margin-bottom:14px;">' + esc(last.good_text) + '</p>' +
+        '<p style="color:#fb923c;font-size:12px;font-weight:600;letter-spacing:0.05em;margin-bottom:6px;">SCHLECHT GELAUFEN</p>' +
+        '<p style="color:#a1a1aa;font-size:14px;white-space:pre-wrap;">' + esc(last.bad_text) + '</p></div>';
+    content = '<h2 style="font-size:26px;font-weight:700;margin-bottom:20px;">Rückblick letzte Woche</h2>' +
+      '<div class="card" style="margin-bottom:20px;">' +
+      '<p style="color:#a1a1aa;font-size:13px;margin-bottom:12px;">KW ' + last.week_number + ', ' + last.year + '</p>' +
+      body + '</div>' +
+      '<div style="display:flex;gap:12px;">' +
+      '<button class="btn btn-secondary" onclick="inputBack()">← Zurück</button>' +
+      '<button class="btn btn-primary" style="flex:1;" onclick="inputNext()">Weiter →</button></div>';
+  }
+
+  else if (state.inputStep === 'followup') {
+    content = '<h2 style="font-size:26px;font-weight:700;margin-bottom:20px;">Follow-up</h2>';
+    if (state.followUpQuestions.length > 0) {
+      content += '<div style="margin-bottom:20px;">' +
+        '<p style="color:#a1a1aa;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Fragen für diese Woche</p>' +
+        '<div style="display:flex;flex-direction:column;gap:10px;">' +
+        state.followUpQuestions.map(function(q) { return '<div class="card">' + esc(q) + '</div>'; }).join('') +
+        '</div></div>';
+    }
+    if (state.recurringThemes.length > 0) {
+      content += '<div style="margin-bottom:20px;">' +
+        '<p style="color:#a1a1aa;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Wiederkehrende Themen</p>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+        state.recurringThemes.map(function(t) {
+          return '<span class="badge badge-orange" style="font-size:13px;padding:6px 12px;">' + esc(t.name) + ' (' + t.count + '× in Folge)</span>';
+        }).join('') + '</div></div>';
+    }
+    content += '<p style="color:#a1a1aa;font-size:14px;margin-bottom:20px;">Denke über diese Punkte nach, während du deine Reflexion schreibst.</p>' +
+      '<div style="display:flex;gap:12px;">' +
+      '<button class="btn btn-secondary" onclick="inputBack()">← Zurück</button>' +
+      '<button class="btn btn-primary" style="flex:1;" onclick="inputNext()">Zur Reflexion →</button></div>';
+  }
+
+  else if (state.inputStep === 'good') {
+    content = '<h2 style="font-size:26px;font-weight:700;margin-bottom:16px;">Was lief gut? ✅</h2>' +
+      '<textarea id="goodArea" placeholder="Schreibe über deine Erfolge, positiven Erlebnisse und Dinge, die gut gelaufen sind..." style="min-height:260px;font-size:15px;margin-bottom:14px;">' +
+      esc(state.goodText) + '</textarea>' +
+      '<div style="display:flex;gap:12px;">' +
+      '<button class="btn btn-secondary" onclick="inputBack()">← Zurück</button>' +
+      '<button id="goodNext" class="btn btn-primary" style="flex:1;" onclick="saveGoodAndNext()" ' + (state.goodText.trim() ? '' : 'disabled') + '>Weiter →</button></div>';
+  }
+
+  else if (state.inputStep === 'bad') {
+    content = '<h2 style="font-size:26px;font-weight:700;margin-bottom:16px;">Was lief schlecht? ⚠️</h2>' +
+      '<textarea id="badArea" placeholder="Schreibe über Herausforderungen, Probleme und Dinge, die nicht so gut gelaufen sind..." style="min-height:260px;font-size:15px;margin-bottom:14px;">' +
+      esc(state.badText) + '</textarea>' +
+      '<div style="display:flex;gap:12px;">' +
+      '<button class="btn btn-secondary" onclick="inputBack()">← Zurück</button>' +
+      '<button id="badNext" class="btn btn-primary" style="flex:1;" onclick="saveBadAndNext()" ' + (state.badText.trim() ? '' : 'disabled') + '>Weiter →</button></div>';
+  }
+
+  else if (state.inputStep === 'summary') {
+    content = '<h2 style="font-size:26px;font-weight:700;margin-bottom:20px;">Zusammenfassung</h2>' +
+      '<div class="card" style="border-left:3px solid #4ade80;margin-bottom:12px;">' +
+      '<p style="color:#4ade80;font-size:12px;font-weight:600;letter-spacing:0.05em;margin-bottom:8px;">GUT GELAUFEN</p>' +
+      '<p style="color:#a1a1aa;font-size:14px;white-space:pre-wrap;">' + esc(state.goodText) + '</p></div>' +
+      '<div class="card" style="border-left:3px solid #fb923c;margin-bottom:20px;">' +
+      '<p style="color:#fb923c;font-size:12px;font-weight:600;letter-spacing:0.05em;margin-bottom:8px;">SCHLECHT GELAUFEN</p>' +
+      '<p style="color:#a1a1aa;font-size:14px;white-space:pre-wrap;">' + esc(state.badText) + '</p></div>' +
+      (getApiKey() ? '<div class="alert alert-info" style="margin-bottom:20px;">💡 Nach dem Speichern wird deine Reflexion automatisch mit KI analysiert.</div>' : '') +
+      '<div style="display:flex;gap:12px;">' +
+      '<button class="btn btn-secondary" onclick="inputBack()">← Zurück</button>' +
+      '<button class="btn btn-primary btn-lg" style="flex:1;" onclick="submitEntry()">Speichern & Abschließen ✓</button></div>';
+  }
+
+  var escHint = state.inputStep !== 'greeting'
+    ? '<div style="text-align:center;margin-top:24px;"><span style="color:#3f3f46;font-size:13px;"><kbd>Esc</kbd> = Zurück</span></div>'
+    : '';
+
+  return '<div class="center-layout"><div class="center-content fade-in">' + content + escHint + '</div></div>';
+}
+
+// ----------------------------------------------------------------
+// YEAR REPORT
+// ----------------------------------------------------------------
+
+function renderReport() {
+  var curYear = new Date().getFullYear();
+  var years = [];
+  for (var i = 0; i < 5; i++) years.push(curYear - i);
+  var count = getEntriesForYear(state.reportYear).length;
+  var hasKey = !!getApiKey();
+  var canGen = hasKey && count > 0 && !state.reportLoading;
+
+  var opts = years.map(function(y) {
+    return '<option value="' + y + '"' + (y === state.reportYear ? ' selected' : '') + '>' + y + '</option>';
+  }).join('');
+
+  var body;
+  if (state.reportLoading) {
+    body = '<div class="card" style="text-align:center;padding:64px;">' +
+      '<div style="font-size:64px;margin-bottom:16px;">🤖</div>' +
+      '<h3 style="font-size:20px;font-weight:700;margin-bottom:8px;">Erstelle deinen Jahresbericht...</h3>' +
+      '<p style="color:#a1a1aa;">Das kann einen Moment dauern</p></div>';
+  } else if (state.reportContent) {
+    body = '<div class="card"><div class="prose">' + marked.parse(state.reportContent) + '</div></div>';
+  } else {
+    body = '<div class="card" style="text-align:center;padding:64px;">' +
+      '<p style="color:#a1a1aa;font-size:17px;">Klicke "Bericht generieren" um deinen persönlichen Jahresbericht zu erstellen.</p></div>';
+  }
+
+  return '<div class="container-sm fade-in">' +
+    '<button class="btn btn-secondary" style="margin-bottom:24px;" onclick="navigate(\'dashboard\')">← Zurück</button>' +
+    '<h1 style="font-size:40px;font-weight:800;letter-spacing:-1px;margin-bottom:24px;">Jahresbericht</h1>' +
+    '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">' +
+    '<select onchange="state.reportYear=parseInt(this.value);state.reportContent=\'\';render();" style="max-width:140px;padding:10px 14px;">' + opts + '</select>' +
+    '<button class="btn btn-primary" onclick="doGenerateReport()" ' + (canGen ? '' : 'disabled') + '>' +
+    (state.reportLoading ? '⏳ Generiere...' : 'Bericht generieren') + '</button>' +
+    (state.reportContent ? '<button class="btn btn-secondary" onclick="exportReport()">⬇ Markdown exportieren</button>' : '') +
+    '</div>' +
+    '<p style="color:#a1a1aa;font-size:13px;margin-bottom:16px;">' + count + ' ' + (count === 1 ? 'Eintrag' : 'Einträge') + ' für ' + state.reportYear + '</p>' +
+    (!hasKey ? '<div class="alert alert-warning" style="margin-bottom:20px;">⚠️ Kein API-Schlüssel. <a href="#" onclick="navigate(\'settings\')" style="color:#fb923c;">Jetzt einrichten →</a></div>' : '') +
+    (hasKey && count === 0 ? '<div class="alert alert-info" style="margin-bottom:20px;">Keine Einträge für ' + state.reportYear + ' vorhanden.</div>' : '') +
+    body + '</div>';
+}
+
+function doGenerateReport() {
+  state.reportLoading = true; state.reportContent = ''; render();
+  generateYearReport(state.reportYear)
+    .then(function(c) { state.reportContent = c; })
+    .catch(function(e) { alert('Fehler: ' + e.message); })
+    .finally(function() { state.reportLoading = false; render(); });
+}
+
+function exportReport() {
+  if (!state.reportContent) return;
+  var blob = new Blob([state.reportContent], { type: 'text/markdown' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'reflexion_' + state.reportYear + '.md';
+  a.click(); URL.revokeObjectURL(url);
+}
+
+// ----------------------------------------------------------------
+// SETTINGS
+// ----------------------------------------------------------------
+
+function renderSettings() {
+  var apiKey = getApiKey();
+  var count = getEntries().length;
+  return '<div class="container-sm fade-in">' +
+    '<button class="btn btn-secondary" style="margin-bottom:24px;" onclick="navigate(\'dashboard\')">← Zurück</button>' +
+    '<h1 style="font-size:40px;font-weight:800;letter-spacing:-1px;margin-bottom:32px;">Einstellungen</h1>' +
+
+    '<div class="card" style="margin-bottom:16px;">' +
+    '<h2 style="font-size:18px;font-weight:600;margin-bottom:8px;">Claude API-Schlüssel</h2>' +
+    '<p style="color:#a1a1aa;font-size:14px;margin-bottom:14px;">Für automatische Zusammenfassungen, Follow-up-Fragen und Jahresberichte. Wird nur lokal gespeichert.</p>' +
+    '<input type="password" id="apiKeyInput" value="' + esc(apiKey) + '" placeholder="sk-ant-..." style="font-family:monospace;margin-bottom:10px;" />' +
+    '<div style="display:flex;gap:8px;">' +
+    '<button class="btn btn-primary" onclick="saveApiKeyFromInput()">Speichern</button>' +
+    (apiKey ? '<button class="btn btn-secondary" onclick="clearApiKey()">Entfernen</button>' : '') +
+    '</div>' +
+    (apiKey ? '<p style="color:#4ade80;font-size:13px;margin-top:10px;">✓ API-Schlüssel konfiguriert</p>' : '<p style="color:#a1a1aa;font-size:13px;margin-top:10px;">Schlüssel unter <a href="https://console.anthropic.com" target="_blank" style="color:#60a5fa;">console.anthropic.com</a> erstellen.</p>') +
+    '</div>' +
+
+    '<div class="card" style="margin-bottom:16px;">' +
+    '<h2 style="font-size:18px;font-weight:600;margin-bottom:8px;">Daten</h2>' +
+    '<p style="color:#a1a1aa;font-size:14px;margin-bottom:14px;">Alle Einträge liegen im Browser-LocalStorage. <strong style="color:#e4e4e7;">' + count + '</strong> ' + (count === 1 ? 'Eintrag' : 'Einträge') + ' gespeichert.</p>' +
+    '<button class="btn btn-secondary" onclick="exportAllData()">⬇ Alle Daten exportieren (JSON)</button>' +
+    '</div>' +
+
+    '<div class="card" style="border-color:rgba(239,68,68,0.3);">' +
+    '<h2 style="font-size:18px;font-weight:600;color:#f87171;margin-bottom:8px;">Gefahrenzone</h2>' +
+    '<p style="color:#a1a1aa;font-size:14px;margin-bottom:14px;">Alle Einträge und Daten unwiderruflich löschen.</p>' +
+    '<button class="btn btn-danger" onclick="deleteAllData()">Alle Daten löschen</button>' +
+    '</div></div>';
+}
+
+function saveApiKeyFromInput() {
+  var key = (document.getElementById('apiKeyInput').value || '').trim();
+  saveApiKey(key);
+  alert(key ? 'API-Schlüssel gespeichert!' : 'API-Schlüssel entfernt.');
+  render();
+}
+
+function clearApiKey() {
+  if (confirm('API-Schlüssel wirklich löschen?')) { saveApiKey(''); render(); }
+}
+
+function exportAllData() {
+  var data = { entries: getEntries(), streak: getStreak(), exportedAt: new Date().toISOString() };
+  var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'reflexion_export_' + new Date().toISOString().split('T')[0] + '.json';
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function deleteAllData() {
+  if (!confirm('Wirklich ALLE Daten löschen? Das kann nicht rückgängig gemacht werden!')) return;
+  if (!confirm('Letzter Hinweis: Alle Reflexionen werden unwiderruflich gelöscht.')) return;
+  localStorage.removeItem('reflexion_entries');
+  localStorage.removeItem('reflexion_streak');
+  alert('Alle Daten wurden gelöscht.');
+  navigate('dashboard');
+}
+
+// ================================================================
+// KEYBOARD NAV + START
+// ================================================================
+
+document.addEventListener('keydown', function(e) {
+  if (state.view === 'input' && e.key === 'Escape' && state.inputStep !== 'processing') inputBack();
+});
+
+render();
+</script>
+</body>
+</html>
