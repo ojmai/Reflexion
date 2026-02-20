@@ -339,6 +339,8 @@ var state = {
   recurringThemes: [],
   weekInfo: null,
   inputLoadingQuestions: false,
+  pendingAnalysis: null,
+  selectedEntry: null,
   reportYear: new Date().getFullYear(),
   reportContent: '',
   reportLoading: false,
@@ -397,6 +399,7 @@ function inputNext() {
 }
 
 function inputBack() {
+  if (state.inputStep === 'review_summary') { state.inputStep = 'summary'; render(); return; }
   var steps = getInputSteps();
   var idx = steps.indexOf(state.inputStep);
   if (idx === 0) { navigate('dashboard'); }
@@ -417,8 +420,20 @@ function saveBadAndNext() {
 
 function submitEntry() {
   if (!state.goodText.trim() || !state.badText.trim()) { alert('Bitte fülle beide Felder aus.'); return; }
-  state.inputStep = 'processing';
-  render();
+  state.pendingAnalysis = null;
+  if (hasApiKey()) {
+    state.inputStep = 'processing';
+    render();
+    analyzeEntry(state.goodText.trim(), state.badText.trim())
+      .then(function(a) { state.pendingAnalysis = a; })
+      .catch(function(e) { console.error('Analysis failed:', e); })
+      .finally(function() { state.inputStep = 'review_summary'; render(); });
+  } else {
+    confirmAndSave();
+  }
+}
+
+function confirmAndSave() {
   var wk = state.weekInfo || getISOWeekYear();
   var entries = getEntries();
   var newEntry = {
@@ -426,23 +441,17 @@ function submitEntry() {
     created_at: new Date().toISOString(),
     week_number: wk.week, year: wk.year,
     good_text: state.goodText.trim(), bad_text: state.badText.trim(),
-    summary: null, categories: [],
+    summary: state.pendingAnalysis ? (state.pendingAnalysis.summary || null) : null,
+    categories: state.pendingAnalysis ? (state.pendingAnalysis.categories || []) : [],
   };
-  function doSave() {
-    entries.push(newEntry);
-    saveEntries(entries);
-    updateStreak();
-    setTimeout(function() { navigate('dashboard'); }, 700);
-  }
-  if (hasApiKey()) {
-    analyzeEntry(newEntry.good_text, newEntry.bad_text)
-      .then(function(a) { newEntry.summary = a.summary; newEntry.categories = a.categories || []; })
-      .catch(function(e) { console.error('Analysis failed:', e); })
-      .finally(doSave);
-  } else {
-    doSave();
-  }
+  entries.push(newEntry);
+  saveEntries(entries);
+  updateStreak();
+  navigate('dashboard');
 }
+
+function reRecordGood() { state.inputStep = 'good'; render(); }
+function reRecordBad()  { state.inputStep = 'bad';  render(); }
 
 // ================================================================
 // RENDER
@@ -521,6 +530,7 @@ function renderDashboard() {
       '<button class="btn btn-primary btn-lg" onclick="navigate(\'input\')">Erste Reflexion erstellen</button></div>'
     : '<div class="grid-3">' + entries.map(renderEntryCard).join('') + '</div>';
 
+  var modal = state.selectedEntry ? renderEntryModal(state.selectedEntry) : '';
   return '<div class="container fade-in">' +
     '<header style="margin-bottom:32px;">' +
     '<h1 style="font-size:48px;font-weight:800;letter-spacing:-1px;margin-bottom:6px;">Reflexion</h1>' +
@@ -530,7 +540,7 @@ function renderDashboard() {
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
     '<h2 style="font-size:22px;font-weight:700;">Letzte Einträge</h2>' +
     '<button class="btn btn-secondary" onclick="navigate(\'report\')">Jahresbericht ' + wk.year + '</button></div>' +
-    entriesHtml + '</div>';
+    entriesHtml + '</div>' + modal;
 }
 
 function renderEntryCard(entry) {
@@ -540,14 +550,57 @@ function renderEntryCard(entry) {
   var preview = entry.summary
     ? '<p style="font-size:13px;color:#d4d4d8;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + esc(entry.summary) + '</p>'
     : '<p style="font-size:13px;color:#a1a1aa;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + esc(entry.good_text) + '</p>';
-  return '<div class="card" style="border-left:3px solid #3f3f46;">' +
+  return '<div class="card" onclick="openEntry(' + entry.id + ')" style="border-left:3px solid #3f3f46;cursor:pointer;transition:border-color 0.15s,background 0.15s;" onmouseenter="this.style.borderColor=\'#60a5fa\';this.style.background=\'rgba(255,255,255,0.07)\'" onmouseleave="this.style.borderColor=\'#3f3f46\';this.style.background=\'\'">' +
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">' +
     '<span style="color:#a1a1aa;font-size:13px;">KW ' + entry.week_number + ', ' + entry.year + '</span>' +
-    '<div style="display:flex;gap:4px;">' +
+    '<div style="display:flex;gap:4px;align-items:center;">' +
     (pos > 0 ? '<span class="badge badge-green">+' + pos + '</span>' : '') +
     (neg > 0 ? '<span class="badge badge-orange">−' + neg + '</span>' : '') +
+    '<span style="color:#52525b;font-size:16px;margin-left:4px;">›</span>' +
     '</div></div>' + preview +
     '<div style="color:#71717a;font-size:12px;margin-top:12px;">' + formatDate(entry.created_at) + '</div></div>';
+}
+
+function openEntry(id) {
+  var entries = getEntries();
+  for (var i = 0; i < entries.length; i++) {
+    if (entries[i].id === id) { state.selectedEntry = entries[i]; break; }
+  }
+  render();
+}
+
+function closeEntry() {
+  state.selectedEntry = null;
+  render();
+}
+
+function renderEntryModal(entry) {
+  var cats = entry.categories || [];
+  var catsHtml = cats.length > 0
+    ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;">' +
+      cats.map(function(c) {
+        return '<span class="badge ' + (c.sentiment === 'positive' ? 'badge-green' : 'badge-orange') + '">' + esc(c.name) + '</span>';
+      }).join('') + '</div>'
+    : '';
+  var summaryBlock = entry.summary
+    ? '<div class="card" style="border-left:3px solid #3b82f6;margin-bottom:16px;">' +
+      '<p style="color:#60a5fa;font-size:12px;font-weight:600;letter-spacing:0.05em;margin-bottom:8px;">KI-ZUSAMMENFASSUNG</p>' +
+      '<p style="font-size:15px;line-height:1.7;">' + esc(entry.summary) + '</p>' +
+      catsHtml + '</div>'
+    : '';
+  return '<div style="position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:24px;" onclick="if(event.target===this)closeEntry()">' +
+    '<div style="background:#18181b;border:1px solid rgba(255,255,255,0.12);border-radius:20px;width:100%;max-width:660px;max-height:88vh;overflow-y:auto;padding:32px;position:relative;">' +
+    '<button onclick="closeEntry()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.08);border:none;color:#a1a1aa;font-size:20px;width:36px;height:36px;border-radius:8px;cursor:pointer;line-height:1;font-family:inherit;" title="Schließen">×</button>' +
+    '<p style="color:#a1a1aa;font-size:13px;margin-bottom:4px;">KW ' + entry.week_number + ', ' + entry.year + '</p>' +
+    '<p style="color:#52525b;font-size:12px;margin-bottom:24px;">' + formatDate(entry.created_at) + '</p>' +
+    summaryBlock +
+    '<div class="card" style="border-left:3px solid #4ade80;margin-bottom:12px;">' +
+    '<p style="color:#4ade80;font-size:12px;font-weight:600;letter-spacing:0.05em;margin-bottom:8px;">GUT GELAUFEN</p>' +
+    '<p style="color:#d4d4d8;font-size:15px;white-space:pre-wrap;line-height:1.7;">' + esc(entry.good_text) + '</p></div>' +
+    '<div class="card" style="border-left:3px solid #fb923c;">' +
+    '<p style="color:#fb923c;font-size:12px;font-weight:600;letter-spacing:0.05em;margin-bottom:8px;">SCHLECHT GELAUFEN</p>' +
+    '<p style="color:#d4d4d8;font-size:15px;white-space:pre-wrap;line-height:1.7;">' + esc(entry.bad_text) + '</p></div>' +
+    '</div></div>';
 }
 
 // ----------------------------------------------------------------
@@ -557,9 +610,9 @@ function renderEntryCard(entry) {
 function renderInput() {
   if (state.inputStep === 'processing') {
     return '<div class="center-layout"><div class="center-content" style="text-align:center;">' +
-      '<div style="font-size:64px;margin-bottom:16px;">⏳</div>' +
-      '<h2 style="font-size:28px;font-weight:700;margin-bottom:12px;">Speichere deine Reflexion...</h2>' +
-      (hasApiKey() ? '<p style="color:#a1a1aa;">Wird mit KI analysiert und kategorisiert</p>' : '') +
+      '<div style="font-size:64px;margin-bottom:16px;">🤖</div>' +
+      '<h2 style="font-size:28px;font-weight:700;margin-bottom:12px;">KI analysiert deine Reflexion...</h2>' +
+      '<p style="color:#a1a1aa;">Zusammenfassung und Kategorien werden erstellt</p>' +
       '</div></div>';
   }
 
@@ -642,17 +695,48 @@ function renderInput() {
   }
 
   else if (state.inputStep === 'summary') {
-    content = '<h2 style="font-size:26px;font-weight:700;margin-bottom:20px;">Zusammenfassung</h2>' +
+    content = '<h2 style="font-size:26px;font-weight:700;margin-bottom:20px;">Deine Reflexion</h2>' +
       '<div class="card" style="border-left:3px solid #4ade80;margin-bottom:12px;">' +
       '<p style="color:#4ade80;font-size:12px;font-weight:600;letter-spacing:0.05em;margin-bottom:8px;">GUT GELAUFEN</p>' +
       '<p style="color:#a1a1aa;font-size:14px;white-space:pre-wrap;">' + esc(state.goodText) + '</p></div>' +
       '<div class="card" style="border-left:3px solid #fb923c;margin-bottom:20px;">' +
       '<p style="color:#fb923c;font-size:12px;font-weight:600;letter-spacing:0.05em;margin-bottom:8px;">SCHLECHT GELAUFEN</p>' +
       '<p style="color:#a1a1aa;font-size:14px;white-space:pre-wrap;">' + esc(state.badText) + '</p></div>' +
-      (hasApiKey() ? '<div class="alert alert-info" style="margin-bottom:20px;">💡 Nach dem Speichern wird deine Reflexion automatisch mit KI analysiert.</div>' : '') +
+      (hasApiKey() ? '<div class="alert alert-info" style="margin-bottom:20px;">Die KI erstellt im nächsten Schritt eine Zusammenfassung — du kannst sie danach prüfen.</div>' : '') +
       '<div style="display:flex;gap:12px;">' +
       '<button class="btn btn-secondary" onclick="inputBack()">← Zurück</button>' +
-      '<button class="btn btn-primary btn-lg" style="flex:1;" onclick="submitEntry()">Speichern & Abschließen ✓</button></div>';
+      '<button class="btn btn-primary btn-lg" style="flex:1;" onclick="submitEntry()">' + (hasApiKey() ? 'Analysieren →' : 'Speichern ✓') + '</button></div>';
+  }
+
+  else if (state.inputStep === 'review_summary') {
+    var a = state.pendingAnalysis;
+    var cats = a && a.categories ? a.categories : [];
+    var summaryBlock = a && a.summary
+      ? '<div class="card" style="border-left:3px solid #3b82f6;margin-bottom:20px;">' +
+        '<p style="color:#60a5fa;font-size:12px;font-weight:600;letter-spacing:0.05em;margin-bottom:8px;">KI-ZUSAMMENFASSUNG</p>' +
+        '<p style="font-size:15px;line-height:1.7;">' + esc(a.summary) + '</p>' +
+        (cats.length > 0
+          ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;">' +
+            cats.map(function(c) {
+              return '<span class="badge ' + (c.sentiment === 'positive' ? 'badge-green' : 'badge-orange') + '">' + esc(c.name) + '</span>';
+            }).join('') + '</div>'
+          : '') +
+        '</div>'
+      : '<div class="alert alert-warning" style="margin-bottom:20px;">KI-Analyse nicht verfügbar — die Reflexion wird ohne Zusammenfassung gespeichert.</div>';
+    content = '<h2 style="font-size:26px;font-weight:700;margin-bottom:8px;">KI-Zusammenfassung</h2>' +
+      '<p style="color:#a1a1aa;font-size:14px;margin-bottom:20px;">Stimmt das so? Du kannst einzelne Antworten noch überarbeiten oder direkt bestätigen.</p>' +
+      summaryBlock +
+      '<div class="card" style="border-left:3px solid #4ade80;margin-bottom:10px;">' +
+      '<p style="color:#4ade80;font-size:12px;font-weight:600;letter-spacing:0.05em;margin-bottom:6px;">GUT GELAUFEN</p>' +
+      '<p style="color:#a1a1aa;font-size:14px;white-space:pre-wrap;">' + esc(state.goodText) + '</p></div>' +
+      '<div class="card" style="border-left:3px solid #fb923c;margin-bottom:20px;">' +
+      '<p style="color:#fb923c;font-size:12px;font-weight:600;letter-spacing:0.05em;margin-bottom:6px;">SCHLECHT GELAUFEN</p>' +
+      '<p style="color:#a1a1aa;font-size:14px;white-space:pre-wrap;">' + esc(state.badText) + '</p></div>' +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">' +
+      '<button class="btn btn-secondary" style="flex:1;min-width:160px;" onclick="reRecordGood()">↩ Gut gelaufen überarbeiten</button>' +
+      '<button class="btn btn-secondary" style="flex:1;min-width:160px;" onclick="reRecordBad()">↩ Schlecht gelaufen überarbeiten</button>' +
+      '</div>' +
+      '<button class="btn btn-primary btn-lg btn-full" onclick="confirmAndSave()">Bestätigen & Speichern ✓</button>';
   }
 
   var escHint = state.inputStep !== 'greeting'
@@ -815,11 +899,9 @@ function exportAllData() {
 }
 
 function deleteAllData() {
-  if (!confirm('Wirklich ALLE Daten löschen? Das kann nicht rückgängig gemacht werden!')) return;
-  if (!confirm('Letzter Hinweis: Alle Reflexionen werden unwiderruflich gelöscht.')) return;
+  if (!confirm('Alle Einträge und Daten löschen? Das kann nicht rückgängig gemacht werden.')) return;
   localStorage.removeItem('reflexion_entries');
   localStorage.removeItem('reflexion_streak');
-  alert('Alle Daten wurden gelöscht.');
   navigate('dashboard');
 }
 
@@ -828,7 +910,10 @@ function deleteAllData() {
 // ================================================================
 
 document.addEventListener('keydown', function(e) {
-  if (state.view === 'input' && e.key === 'Escape' && state.inputStep !== 'processing') inputBack();
+  if (e.key === 'Escape') {
+    if (state.selectedEntry) { closeEntry(); return; }
+    if (state.view === 'input' && state.inputStep !== 'processing') inputBack();
+  }
 });
 
 render();
