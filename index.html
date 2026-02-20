@@ -143,8 +143,16 @@ function getStreak() {
     '{"current_streak":0,"longest_streak":0,"last_entry_date":null}');
 }
 function saveStreak(s) { localStorage.setItem('reflexion_streak', JSON.stringify(s)); }
-function getApiKey() { return localStorage.getItem('reflexion_api_key') || ''; }
-function saveApiKey(k) { localStorage.setItem('reflexion_api_key', k); }
+function getClaudeKey() { return localStorage.getItem('reflexion_api_key') || ''; }
+function saveClaudeKey(k) { localStorage.setItem('reflexion_api_key', k); }
+function getOpenAIKey() { return localStorage.getItem('reflexion_openai_key') || ''; }
+function saveOpenAIKey(k) { localStorage.setItem('reflexion_openai_key', k); }
+function hasApiKey() { return !!(getClaudeKey() || getOpenAIKey()); }
+function getActiveProvider() {
+  if (getClaudeKey()) return 'claude';
+  if (getOpenAIKey()) return 'openai';
+  return null;
+}
 
 // ================================================================
 // HELPERS
@@ -232,26 +240,44 @@ function updateStreak() {
 // LLM  (calls Claude API directly from the browser)
 // ================================================================
 
-function callClaude(prompt, maxTokens) {
-  var apiKey = getApiKey();
-  if (!apiKey) return Promise.reject(new Error('Kein API-Schlüssel konfiguriert. Bitte in ⚙️ Einstellungen eintragen.'));
-  return fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-allow-browser': 'true',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: maxTokens || 1024,
-      messages: [{ role: 'user', content: prompt }]
-    })
-  }).then(function(resp) {
-    if (!resp.ok) return resp.text().then(function(t) { throw new Error('API Fehler (' + resp.status + '): ' + t); });
-    return resp.json();
-  }).then(function(data) { return data.content[0].text; });
+function callLLM(prompt, maxTokens) {
+  var provider = getActiveProvider();
+  if (!provider) return Promise.reject(new Error('Kein API-Schlüssel konfiguriert. Bitte in ⚙️ Einstellungen eintragen.'));
+  if (provider === 'claude') {
+    return fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': getClaudeKey(),
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-allow-browser': 'true',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: maxTokens || 1024,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    }).then(function(resp) {
+      if (!resp.ok) return resp.text().then(function(t) { throw new Error('Claude API Fehler (' + resp.status + '): ' + t); });
+      return resp.json();
+    }).then(function(data) { return data.content[0].text; });
+  } else {
+    return fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + getOpenAIKey(),
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        max_tokens: maxTokens || 1024,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    }).then(function(resp) {
+      if (!resp.ok) return resp.text().then(function(t) { throw new Error('OpenAI API Fehler (' + resp.status + '): ' + t); });
+      return resp.json();
+    }).then(function(data) { return data.choices[0].message.content; });
+  }
 }
 
 function extractJson(text) {
@@ -267,7 +293,7 @@ function analyzeEntry(goodText, badText) {
     '\n\nAufgaben:\n1. Erstelle eine kurze Zusammenfassung (2-3 Sätze)\n' +
     '2. Extrahiere Kategorien mit Sentiment (positive/negative)\n\n' +
     'Antworte im JSON-Format:\n{"summary": "...", "categories": [{"name": "Schlaf", "sentiment": "negative"}, {"name": "Sport", "sentiment": "positive"}]}';
-  return callClaude(prompt, 1024).then(extractJson);
+  return callLLM(prompt, 1024).then(extractJson);
 }
 
 function generateFollowUpQuestions(lastContext, recurringThemes) {
@@ -278,7 +304,7 @@ function generateFollowUpQuestions(lastContext, recurringThemes) {
     'Letzte Reflexion:\n' + lastContext +
     '\n\nWiederkehrende negative Themen:\n' + themesText +
     '\n\nAntworte mit einer JSON-Liste:\n["Frage 1", "Frage 2", "Frage 3"]';
-  return callClaude(prompt, 512).then(extractJson);
+  return callLLM(prompt, 512).then(extractJson);
 }
 
 function generateYearReport(year) {
@@ -297,7 +323,7 @@ function generateYearReport(year) {
     '3. Hauptherausforderungen und wiederkehrende Themen\n4. Persönliche Entwicklung und Wachstum\n' +
     '5. Erkenntnisse und Learnings\n6. Ausblick und Empfehlungen\n\n' +
     'Formatiere den Bericht in Markdown. Schreibe auf Deutsch.';
-  return callClaude(prompt, 4096);
+  return callLLM(prompt, 4096);
 }
 
 // ================================================================
@@ -337,7 +363,7 @@ function navigate(view) {
     window.scrollTo(0, 0);
     // Async: generate follow-up questions
     var last = state.lastEntry;
-    if (getApiKey() && last) {
+    if (hasApiKey() && last) {
       state.inputLoadingQuestions = true;
       render();
       var ctx = last.summary || ('Gut: ' + last.good_text + '\nSchlecht: ' + last.bad_text);
@@ -408,7 +434,7 @@ function submitEntry() {
     updateStreak();
     setTimeout(function() { navigate('dashboard'); }, 700);
   }
-  if (getApiKey()) {
+  if (hasApiKey()) {
     analyzeEntry(newEntry.good_text, newEntry.bad_text)
       .then(function(a) { newEntry.summary = a.summary; newEntry.categories = a.categories || []; })
       .catch(function(e) { console.error('Analysis failed:', e); })
@@ -464,7 +490,7 @@ function renderDashboard() {
   var entries = getEntries()
     .slice().sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); })
     .slice(0, 8);
-  var hasKey = !!getApiKey();
+  var hasKey = hasApiKey();
 
   var warning = hasKey ? '' :
     '<div class="alert alert-warning" style="display:flex;gap:12px;align-items:flex-start;margin-bottom:24px;">' +
@@ -533,7 +559,7 @@ function renderInput() {
     return '<div class="center-layout"><div class="center-content" style="text-align:center;">' +
       '<div style="font-size:64px;margin-bottom:16px;">⏳</div>' +
       '<h2 style="font-size:28px;font-weight:700;margin-bottom:12px;">Speichere deine Reflexion...</h2>' +
-      (getApiKey() ? '<p style="color:#a1a1aa;">Wird mit KI analysiert und kategorisiert</p>' : '') +
+      (hasApiKey() ? '<p style="color:#a1a1aa;">Wird mit KI analysiert und kategorisiert</p>' : '') +
       '</div></div>';
   }
 
@@ -623,7 +649,7 @@ function renderInput() {
       '<div class="card" style="border-left:3px solid #fb923c;margin-bottom:20px;">' +
       '<p style="color:#fb923c;font-size:12px;font-weight:600;letter-spacing:0.05em;margin-bottom:8px;">SCHLECHT GELAUFEN</p>' +
       '<p style="color:#a1a1aa;font-size:14px;white-space:pre-wrap;">' + esc(state.badText) + '</p></div>' +
-      (getApiKey() ? '<div class="alert alert-info" style="margin-bottom:20px;">💡 Nach dem Speichern wird deine Reflexion automatisch mit KI analysiert.</div>' : '') +
+      (hasApiKey() ? '<div class="alert alert-info" style="margin-bottom:20px;">💡 Nach dem Speichern wird deine Reflexion automatisch mit KI analysiert.</div>' : '') +
       '<div style="display:flex;gap:12px;">' +
       '<button class="btn btn-secondary" onclick="inputBack()">← Zurück</button>' +
       '<button class="btn btn-primary btn-lg" style="flex:1;" onclick="submitEntry()">Speichern & Abschließen ✓</button></div>';
@@ -645,7 +671,7 @@ function renderReport() {
   var years = [];
   for (var i = 0; i < 5; i++) years.push(curYear - i);
   var count = getEntriesForYear(state.reportYear).length;
-  var hasKey = !!getApiKey();
+  var hasKey = hasApiKey();
   var canGen = hasKey && count > 0 && !state.reportLoading;
 
   var opts = years.map(function(y) {
@@ -702,21 +728,45 @@ function exportReport() {
 // ----------------------------------------------------------------
 
 function renderSettings() {
-  var apiKey = getApiKey();
+  var claudeKey = getClaudeKey();
+  var openaiKey = getOpenAIKey();
+  var provider = getActiveProvider();
   var count = getEntries().length;
+
+  var providerBadge = '';
+  if (provider === 'claude') providerBadge = '<span style="color:#4ade80;font-size:13px;margin-top:10px;display:block;">✓ Aktiv — Claude wird verwendet</span>';
+  else if (provider === 'openai') providerBadge = '<span style="color:#4ade80;font-size:13px;margin-top:10px;display:block;">✓ Aktiv — OpenAI wird verwendet</span>';
+  else providerBadge = '<span style="color:#fb923c;font-size:13px;margin-top:10px;display:block;">Kein API-Schlüssel hinterlegt — KI-Features deaktiviert</span>';
+
   return '<div class="container-sm fade-in">' +
     '<button class="btn btn-secondary" style="margin-bottom:24px;" onclick="navigate(\'dashboard\')">← Zurück</button>' +
-    '<h1 style="font-size:40px;font-weight:800;letter-spacing:-1px;margin-bottom:32px;">Einstellungen</h1>' +
+    '<h1 style="font-size:40px;font-weight:800;letter-spacing:-1px;margin-bottom:8px;">Einstellungen</h1>' +
+    '<p style="color:#a1a1aa;font-size:14px;margin-bottom:32px;">Hinterlege einen der beiden API-Schlüssel. Wenn beide eingetragen sind, wird Claude bevorzugt.</p>' +
 
     '<div class="card" style="margin-bottom:16px;">' +
-    '<h2 style="font-size:18px;font-weight:600;margin-bottom:8px;">Claude API-Schlüssel</h2>' +
-    '<p style="color:#a1a1aa;font-size:14px;margin-bottom:14px;">Für automatische Zusammenfassungen, Follow-up-Fragen und Jahresberichte. Wird nur lokal gespeichert.</p>' +
-    '<input type="password" id="apiKeyInput" value="' + esc(apiKey) + '" placeholder="sk-ant-..." style="font-family:monospace;margin-bottom:10px;" />' +
+    '<h2 style="font-size:18px;font-weight:600;margin-bottom:4px;">Claude API-Schlüssel</h2>' +
+    '<p style="color:#a1a1aa;font-size:13px;margin-bottom:12px;"><a href="https://console.anthropic.com" target="_blank" style="color:#60a5fa;">console.anthropic.com</a></p>' +
+    '<input type="password" id="claudeKeyInput" value="' + esc(claudeKey) + '" placeholder="sk-ant-..." style="font-family:monospace;margin-bottom:10px;" />' +
     '<div style="display:flex;gap:8px;">' +
-    '<button class="btn btn-primary" onclick="saveApiKeyFromInput()">Speichern</button>' +
-    (apiKey ? '<button class="btn btn-secondary" onclick="clearApiKey()">Entfernen</button>' : '') +
+    '<button class="btn btn-primary" onclick="saveClaudeKeyFromInput()">Speichern</button>' +
+    (claudeKey ? '<button class="btn btn-secondary" onclick="clearClaudeKey()">Entfernen</button>' : '') +
     '</div>' +
-    (apiKey ? '<p style="color:#4ade80;font-size:13px;margin-top:10px;">✓ API-Schlüssel konfiguriert</p>' : '<p style="color:#a1a1aa;font-size:13px;margin-top:10px;">Schlüssel unter <a href="https://console.anthropic.com" target="_blank" style="color:#60a5fa;">console.anthropic.com</a> erstellen.</p>') +
+    (claudeKey ? '<span style="color:#4ade80;font-size:13px;margin-top:10px;display:block;">✓ Hinterlegt</span>' : '') +
+    '</div>' +
+
+    '<div class="card" style="margin-bottom:16px;">' +
+    '<h2 style="font-size:18px;font-weight:600;margin-bottom:4px;">OpenAI API-Schlüssel</h2>' +
+    '<p style="color:#a1a1aa;font-size:13px;margin-bottom:12px;"><a href="https://platform.openai.com/api-keys" target="_blank" style="color:#60a5fa;">platform.openai.com/api-keys</a></p>' +
+    '<input type="password" id="openaiKeyInput" value="' + esc(openaiKey) + '" placeholder="sk-..." style="font-family:monospace;margin-bottom:10px;" />' +
+    '<div style="display:flex;gap:8px;">' +
+    '<button class="btn btn-primary" onclick="saveOpenAIKeyFromInput()">Speichern</button>' +
+    (openaiKey ? '<button class="btn btn-secondary" onclick="clearOpenAIKey()">Entfernen</button>' : '') +
+    '</div>' +
+    (openaiKey ? '<span style="color:#4ade80;font-size:13px;margin-top:10px;display:block;">✓ Hinterlegt</span>' : '') +
+    '</div>' +
+
+    '<div class="card" style="margin-bottom:24px;background:rgba(255,255,255,0.02);">' +
+    providerBadge +
     '</div>' +
 
     '<div class="card" style="margin-bottom:16px;">' +
@@ -732,15 +782,26 @@ function renderSettings() {
     '</div></div>';
 }
 
-function saveApiKeyFromInput() {
-  var key = (document.getElementById('apiKeyInput').value || '').trim();
-  saveApiKey(key);
-  alert(key ? 'API-Schlüssel gespeichert!' : 'API-Schlüssel entfernt.');
+function saveClaudeKeyFromInput() {
+  var key = (document.getElementById('claudeKeyInput').value || '').trim();
+  saveClaudeKey(key);
+  alert(key ? 'Claude API-Schlüssel gespeichert!' : 'Claude API-Schlüssel entfernt.');
   render();
 }
 
-function clearApiKey() {
-  if (confirm('API-Schlüssel wirklich löschen?')) { saveApiKey(''); render(); }
+function clearClaudeKey() {
+  if (confirm('Claude API-Schlüssel wirklich löschen?')) { saveClaudeKey(''); render(); }
+}
+
+function saveOpenAIKeyFromInput() {
+  var key = (document.getElementById('openaiKeyInput').value || '').trim();
+  saveOpenAIKey(key);
+  alert(key ? 'OpenAI API-Schlüssel gespeichert!' : 'OpenAI API-Schlüssel entfernt.');
+  render();
+}
+
+function clearOpenAIKey() {
+  if (confirm('OpenAI API-Schlüssel wirklich löschen?')) { saveOpenAIKey(''); render(); }
 }
 
 function exportAllData() {
